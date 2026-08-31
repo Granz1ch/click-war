@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* Font stacks matched by the Tailwind theme (font-display / font-game). */
+  --font-display: "Unbounded", sans-serif;
+  --font-game: "Orbitron", sans-serif;
+  --font-body: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+  color: #e9e6ff;
+  background: #07010f;
+  font-family: var(--font-body);
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(168, 85, 247, 0.35), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, rgba(34, 211, 238, 0.25), transparent 55%),
+    radial-gradient(900px 700px at 50% 110%, rgba(236, 72, 153, 0.3), transparent 60%),
+    #07010f;
+  background-attachment: fixed;
+}
+
+/* --- reusable component classes --- */
+@layer components {
+  .glass {
+    @apply border border-white/10 bg-white/5 backdrop-blur-xl;
+  }
+  .glow-purple {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.45);
+  }
+  .glow-cyan {
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.35);
+  }
+  .text-gradient {
+    background: linear-gradient(120deg, #fbbf24, #ec4899, #a855f7, #22d3ee);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 font-display text-sm font-semibold tracking-wide transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-fuchsia-500 via-purple-500 to-cyan-400 text-white shadow-lg hover:scale-[1.03] hover:shadow-2xl;
+  }
+  .btn-ghost {
+    @apply btn glass text-purple-100 hover:border-fuchsia-400/50 hover:bg-white/10;
+  }
+  .card {
+    @apply glass rounded-3xl p-6;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition-colors placeholder:text-white/30 focus:border-fuchsia-400/60;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+}
+
+@keyframes pop-up {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-46px); opacity: 0; }
+}
+
+/* starfield animation */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 9999px;
+  opacity: 0.5;
+  animation: twinkle 3s infinite ease-in-out;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(236, 72, 153, 0.6);
+}
