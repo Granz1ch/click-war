@@ -117,7 +117,7 @@ components/              # UI components
   game/                  # game tabs (coin, hatch, treasury, dex, skills, promo, members, admin)
 lib/                     # server/client logic
   auth.js                # password hashing + signed cookies
-  db.js                  # local persistence layer
+  db.js                  # persistence layer (local file OR Supabase)
   game.js                # core game logic
   catalog.js             # pets, rarities, eggs, upgrades, skill tree
   supabase.js            # Supabase client wiring

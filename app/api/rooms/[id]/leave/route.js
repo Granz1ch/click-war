@@ -1,11 +1,11 @@
 import { json, error, requireUser, ownerOf, memberOf } from "@/lib/api";
-import { getRoomById, commit } from "@/lib/db";
+import { getRoomById, deleteRoom, commit } from "@/lib/db";
 
 export async function POST(req, { params }) {
   const auth = await requireUser(req);
   if (auth.error) return auth.error;
   const user = auth.user;
-  const room = getRoomById((await params).id);
+  const room = await getRoomById((await params).id);
   if (!room) return error("Room not found.", 404);
   if (!memberOf(room, user.id)) return error("You're not a member of this room.");
 
@@ -22,9 +22,7 @@ export async function POST(req, { params }) {
       room.ownerId = room.members[0];
     } else {
       // delete empty room
-      const { loadState } = await import("@/lib/db");
-      const state = loadState();
-      delete state.rooms[room.id];
+      await deleteRoom(room.id);
       await commit();
       return json({ ok: true, deleted: true });
     }

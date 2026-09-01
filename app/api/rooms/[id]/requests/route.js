@@ -4,13 +4,14 @@ import { getRoomById, getUserById, commit } from "@/lib/db";
 export async function GET(req, { params }) {
   const auth = await requireUser(req);
   if (auth.error) return auth.error;
-  const room = getRoomById((await params).id);
+  const room = await getRoomById((await params).id);
   if (!room) return error("Room not found.", 404);
   if (!ownerOf(room, auth.user.id)) return error("Only the owner can view requests.", 403);
-  const requests = room.requests.map((id) => {
-    const u = getUserById(id);
-    return { id, login: u ? u.login : "?" };
-  });
+  const requests = [];
+  for (const id of room.requests) {
+    const u = await getUserById(id);
+    requests.push({ id, login: u ? u.login : "?" });
+  }
   return json({ ok: true, requests });
 }
 
@@ -19,12 +20,12 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   const auth = await requireUser(req);
   if (auth.error) return auth.error;
-  const room = getRoomById((await params).id);
+  const room = await getRoomById((await params).id);
   if (!room) return error("Room not found.", 404);
   if (!ownerOf(room, auth.user.id)) return error("Only the owner can manage requests.", 403);
 
   const body = await req.json();
-  const reqUser = getUserById(body.userId);
+  const reqUser = await getUserById(body.userId);
   if (!reqUser) return error("User not found.", 404);
   if (!room.requests.includes(body.userId)) return error("No pending request from this user.");
 

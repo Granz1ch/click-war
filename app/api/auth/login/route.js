@@ -5,11 +5,11 @@ import { publicUser } from "@/lib/serialize";
 
 export async function POST(req) {
   try {
-    ensureAdmin();
+    await ensureAdmin();
     const body = await req.json();
     const login = String(body.login || "").trim();
     const password = String(body.password || "");
-    const user = getUserByLogin(login);
+    const user = await getUserByLogin(login);
     if (!user || !verifyPassword(password, user.passHash)) {
       return error("Invalid login or password.", 401);
     }

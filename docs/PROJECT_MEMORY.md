@@ -41,8 +41,10 @@ set** (see `.env.example` + `supabase/schema.sql`).
   vars `--font-display` / `--font-game` / `--font-body` in `app/globals.css`.
 - **Server logic** is split into `lib/`:
   - `auth.js` — scrypt password hashing + HMAC-signed httpOnly session cookie.
-  - `db.js` — local JSON persistence layer (best-effort writes; in-memory
-    fallback on read-only filesystems).
+  - `db.js` — persistence layer. **All functions are async** (must be
+    `await`ed). Uses Supabase when the env vars are set, otherwise a local
+    JSON file (`data/db.json`). Supabase mode tracks every fetched entity in a
+    working set and `commit()` diff-upserts only the ones that changed.
   - `game.js` — pure game logic (tap, hatch, upgrades, treasury, skills,
     rebirth, promos, admin actions).
   - `catalog.js` — pets, rarities, eggs, upgrades, skill tree.
@@ -120,9 +122,9 @@ room upgrade, admin block/freeze/issue/grant). `npm run build` succeeds.
 
 ## Next steps (open backlog)
 
-1. Wire the actual Supabase data layer as a true drop-in for `lib/db.js`
-   (currently `lib/supabase.js` only provides clients; local DB is the runtime
-   default).
+1. ~~Wire the actual Supabase data layer as a true drop-in for `lib/db.js`.~~
+   ✅ Done — `lib/db.js` now auto-switches to Supabase when the env vars are
+   set; the local JSON DB is the fallback when they aren't.
 2. Add realtime room sync (Supabase Realtime / WebSocket) so the treasury
    updates live without polling. There's a 5 s polling tick as a stopgap
    (`components/game/GameShell.js`).

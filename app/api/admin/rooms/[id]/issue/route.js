@@ -7,7 +7,7 @@ import { publicRoom } from "@/lib/serialize";
 export async function POST(req, { params }) {
   const auth = await requireAdmin(req);
   if (auth.error) return auth.error;
-  const room = getRoomById((await params).id);
+  const room = await getRoomById((await params).id);
   if (!room) return error("Room not found.", 404);
 
   const body = await req.json();

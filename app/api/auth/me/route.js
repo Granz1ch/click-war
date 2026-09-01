@@ -5,11 +5,11 @@ import { publicUser } from "@/lib/serialize";
 import { getRooms, getRoomById } from "@/lib/db";
 
 export async function GET(req) {
-  ensureAdmin();
-  const user = currentUser(req);
+  await ensureAdmin();
+  const user = await currentUser(req);
   if (!user) return json({ ok: false, user: null });
   // Attach the room the user is currently in (if any).
-  const rooms = getRooms();
+  const rooms = await getRooms();
   const activeRoom = rooms.find((r) => r.members.includes(user.id) && !r.blocked) || null;
   return json({
     ok: true,
