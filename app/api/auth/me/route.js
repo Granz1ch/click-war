@@ -1,11 +1,12 @@
-import { json } from "@/lib/api";
-import { currentUser } from "@/lib/api";
-import { ensureAdmin } from "@/lib/auth";
+import { json, currentUser } from "@/lib/api";
 import { publicUser } from "@/lib/serialize";
-import { getRooms, getRoomById } from "@/lib/db";
+import { getRooms } from "@/lib/db";
+
+// This route depends on the request's session cookie and the live database,
+// so it must always run on demand and never be statically prerendered.
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  await ensureAdmin();
   const user = await currentUser(req);
   if (!user) return json({ ok: false, user: null });
   // Attach the room the user is currently in (if any).
