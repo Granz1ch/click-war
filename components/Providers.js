@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 
 const AppContext = createContext(null);
 
@@ -41,7 +48,11 @@ export function Providers({ children }) {
     refreshUser();
   }, [refreshUser]);
 
-  async function api(url, opts = {}) {
+  // IMPORTANT: api must be a STABLE function (useCallback with no deps).
+  // Before it was recreated on every render, and every consumer effect that
+  // listed it as a dependency re-fired endlessly — an infinite request loop
+  // that made the whole site stutter and state update "randomly".
+  const api = useCallback(async (url, opts = {}) => {
     const res = await fetch(url, {
       headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
       ...opts,
@@ -49,29 +60,29 @@ export function Providers({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (typeof window !== "undefined" && window.location.pathname.startsWith("/game")) {
-        if (data.error && (data.error.includes("banned") || data.error.includes("Not authenticated"))) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/game")
+      ) {
+        if (
+          data.error &&
+          (data.error.includes("banned") ||
+            data.error.includes("Not authenticated"))
+        ) {
           window.location.href = "/login";
         }
       }
       return { ...data, ok: false, _status: res.status };
     }
     return data;
-  }
+  }, []);
 
-  return (
-    <AppContext.Provider
-      value={{
-        user,
-        setUser,
-        loading,
-        refreshUser,
-        api,
-        toast,
-        showToast,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  // Memoize the context value so consumers only re-render when something
+  // they actually use changes (a toast popup no longer re-renders the app).
+  const value = useMemo(
+    () => ({ user, setUser, loading, refreshUser, api, toast, showToast }),
+    [user, loading, refreshUser, api, toast, showToast]
   );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
