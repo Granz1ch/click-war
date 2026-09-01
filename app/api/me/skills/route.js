@@ -1,5 +1,5 @@
 import { json, error, requireUser } from "@/lib/api";
-import { getRoomById, roomOfUser, getUserById, commit } from "@/lib/db";
+import { roomOfUser, getUserById, commit } from "@/lib/db";
 import { upgradeSkill } from "@/lib/game";
 import { publicUser } from "@/lib/serialize";
 
@@ -12,12 +12,12 @@ export async function POST(req) {
   if (!body.skillId) return error("Missing skillId.");
 
   // Skill tree upgrades apply to the player, but require the player be in a room.
-  const room = roomOfUser(user.id);
+  const room = await roomOfUser(user.id);
   if (!room) return error("You must be in a room to upgrade skills.");
 
   const result = upgradeSkill(room, user, body.skillId);
   await commit();
   if (!result.ok) return error(result.error);
-  const fresh = getUserById(user.id);
+  const fresh = await getUserById(user.id);
   return json({ ok: true, user: publicUser(fresh), cost: result.cost, level: result.level });
 }

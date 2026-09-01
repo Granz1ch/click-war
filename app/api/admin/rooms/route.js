@@ -1,10 +1,10 @@
 import { json, error, requireAdmin } from "@/lib/api";
-import { getRooms, updateRoom, commit } from "@/lib/db";
+import { getRooms, commit } from "@/lib/db";
 
 export async function GET(req) {
   const auth = await requireAdmin(req);
   if (auth.error) return auth.error;
-  return json({ ok: true, rooms: getRooms() });
+  return json({ ok: true, rooms: await getRooms() });
 }
 
 // body: { roomId, action: "block"|"unblock"|"freeze"|"unfreeze" }
@@ -12,7 +12,7 @@ export async function POST(req) {
   const auth = await requireAdmin(req);
   if (auth.error) return auth.error;
   const body = await req.json();
-  const room = getRooms().find((r) => r.id === body.roomId);
+  const room = (await getRooms()).find((r) => r.id === body.roomId);
   if (!room) return error("Room not found.", 404);
 
   const action = body.action;

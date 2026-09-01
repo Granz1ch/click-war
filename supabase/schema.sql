@@ -44,6 +44,7 @@ create table if not exists public.rooms (
   frozen        boolean not null default false,
   members       jsonb not null default '[]'::jsonb, -- [ player_id ]
   requests      jsonb not null default '[]'::jsonb, -- [ player_id ]
+  chat          jsonb not null default '[]'::jsonb, -- [{ id, userId, login, text, at, special }]
   upgrades      jsonb not null default '{}'::jsonb, -- { upgrade_id: level }
   treasury      jsonb not null default '{"coins":0,"crystals":0,"star":0,"capacity":500,"petCapacity":10,"pets":{}}'::jsonb
 );
@@ -69,6 +70,10 @@ create table if not exists public.events (
   data          jsonb not null default '{}'::jsonb,
   created_at    timestamptz not null default now()
 );
+
+-- Logins must be unique case-insensitively (the app lowercases lookups).
+create unique index if not exists players_login_lower_idx
+  on public.players (lower(login));
 
 -- ============================================================
 --  Row Level Security

@@ -16,12 +16,12 @@ export async function POST(req) {
     }
     if (password.length < 6) return error("Password must be at least 6 characters.");
 
-    ensureAdmin();
-    if (getUserByLogin(login)) {
+    await ensureAdmin();
+    if (await getUserByLogin(login)) {
       return error("This login is already taken.", 409);
     }
 
-    const user = createUser({ login, passHash: hashPassword(password) });
+    const user = await createUser({ login, passHash: hashPassword(password) });
     await commit();
     const token = createSessionToken(user.id);
     const res = json({ ok: true, user: publicUser(user) });
