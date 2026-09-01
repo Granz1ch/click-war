@@ -21,6 +21,23 @@ export function CoinTab({ room, refresh }) {
   const energyCost = Math.max(1, 8 - Math.floor(energyLevel * 0.5) - Math.floor((user.skillTree.s_energy || 0) * 0.4));
   const autoRate = autoLevel * 0.2 + (user.skillTree.s_auto || 0) * 0.2;
 
+  // Coalesce rapid taps into ONE refresh: without this, every click fires a
+  // full state reload and the UI churns/flickers under fast clicking.
+  const refreshTimer = useRef(null);
+  const refreshSoon = useCallback(() => {
+    if (refreshTimer.current) return;
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null;
+      refresh();
+    }, 400);
+  }, [refresh]);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    []
+  );
+
   const doTap = useCallback(
     async (taps = 1) => {
       if (energyRef.current < energyCost) {
@@ -41,12 +58,12 @@ export function CoinTab({ room, refresh }) {
       if (res && res.ok) {
         setTapPower(res.power);
         setLastGain(res.gained);
-        refresh();
+        refreshSoon();
       } else if (res && res.error) {
         showToast(res.error, "error");
       }
     },
-    [api, room.id, energyCost, refresh, showToast]
+    [api, room.id, energyCost, refreshSoon, showToast]
   );
 
   // Energy regen
@@ -69,11 +86,11 @@ export function CoinTab({ room, refresh }) {
       if (res && res.ok) {
         setAutoTick((n) => n + 1);
         setLastGain(res.gained);
-        refresh();
+        refreshSoon();
       }
     }, 1000 / autoRate);
     return () => clearInterval(t);
-  }, [autoRate, room.id, api, refresh]);
+  }, [autoRate, room.id, api, refreshSoon]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

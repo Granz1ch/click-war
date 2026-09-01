@@ -92,6 +92,42 @@ set** (see `.env.example` + `supabase/schema.sql`).
 
 ---
 
+## Fix log
+
+### 2026-09-01 — UI no longer teleports lobby↔room; site-wide stutter fixed
+
+The game UI had an **infinite request loop** and **racing state updates**:
+
+- `Providers.api` was recreated on every render, and `GameShell`'s load effect
+  depended on both `user` and `api`. Every `setUser(me.user)` (new object each
+  poll) re-triggered the effect → nonstop `/api/auth/me` + `/api/rooms/[id]`
+  requests and re-renders (the "site is super laggy / updates buggy" bug).
+- `onEnterRoom` used `setRoom(null)` + `router.push("/game?room=…")` +
+  `setTimeout(loadRoom, 200)`. Meanwhile stale in-flight polls (fired before a
+  room existed) resolved with `inRoomId: null` and flipped the UI back to the
+  lobby — the "creating a room bounces me lobby↔room" bug.
+- `GET /api/auth/me` excluded **blocked** rooms from `inRoomId`, so an admin
+  block ejected everyone to the lobby and unblock pulled them back.
+
+Fixes (keep these invariants!):
+
+1. `Providers.js`: `api` is a stable `useCallback`; context value memoized.
+2. `GameShell.js`: one stable `sync()` (mounted once + 5s interval while in a
+   room). A monotonic `syncSeq` ref drops stale responses — only the newest
+   sync mutates state. `setUser/setRoom/setMembers` only swap when the JSON
+   actually changed. Entering a room = `await sync()`, no router/timeout hacks.
+3. `api/auth/me`: `inRoomId` reflects membership regardless of `blocked`
+   (blocked rooms pause gameplay via `room.blocked` checks; leave/tap routes
+   already enforce that server-side).
+4. `CoinTab.js`: post-tap refresh is coalesced (400 ms) so fast clicking does
+   not spawn a request flood.
+
+Rule of thumb for future work: **never** put `user` or `api` into effect deps
+without memoization, and always guard polling updates against out-of-order
+responses.
+
+---
+
 ## Backend verification (all passed)
 
 Manual curl test suite verified (auth, room create/join/accept, tap, hatch,

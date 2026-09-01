@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "../Providers";
 import { Starfield } from "../Starfield";
-import { TapCoin } from "../TapCoin";
 import { Lobby } from "./Lobby";
 import { CoinTab } from "./CoinTab";
 import { TreasuryTab } from "./TreasuryTab";
@@ -27,68 +26,77 @@ const TABS = [
   { id: "members", label: "Members", emoji: "👥" },
 ];
 
+// Only swap state when the payload really changed — keeps re-renders (and
+// dependent effects/intervals) from firing on every poll tick.
+function sameJson(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function GameShell() {
   const { user, setUser, api, showToast } = useApp();
   const router = useRouter();
   const [room, setRoom] = useState(null);
   const [members, setMembers] = useState([]);
-  const [canJoin, setCanJoin] = useState(false);
   const [tab, setTab] = useState("coin");
   const [boot, setBoot] = useState(true);
 
-  const isAdmin = user && user.isAdmin;
+  // Monotonic request counter: only the LATEST sync may touch state.
+  // Stale responses (e.g. a /api/auth/me fired just before a room was
+  // created) are dropped, so the UI can never flip lobby -> room -> lobby.
+  const syncSeq = useRef(0);
 
-  const loadRoom = useCallback(async () => {
-    if (!user) return;
-    const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null);
+  const isAdmin = user && user.isAdmin;
+  const roomId = room ? room.id : null;
+
+  const sync = useCallback(async () => {
+    const seq = ++syncSeq.current;
+    const me = await fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => null);
+    if (seq !== syncSeq.current) return; // a newer sync is in flight
     if (!me || !me.user) {
       router.replace("/login");
       return;
     }
-    setUser(me.user);
+    setUser((prev) => (sameJson(prev, me.user) ? prev : me.user));
     if (!me.inRoomId) {
-      setRoom(null);
-      setMembers([]);
+      setRoom((prev) => (prev === null ? prev : null));
+      setMembers((prev) => (prev.length === 0 ? prev : []));
       setBoot(false);
       return;
     }
     const res = await api(`/api/rooms/${me.inRoomId}`, { method: "GET" });
-    if (res && res.room) {
-      setRoom(res.room);
-      setMembers(res.members || []);
-      setCanJoin(false);
+    if (seq !== syncSeq.current) return;
+    if (res && res.ok !== false && res.room) {
+      const nextMembers = res.members || [];
+      setRoom((prev) => (sameJson(prev, res.room) ? prev : res.room));
+      setMembers((prev) => (sameJson(prev, nextMembers) ? prev : nextMembers));
     }
     setBoot(false);
-  }, [user, api, router, setUser]);
+  }, [api, router, setUser]);
 
+  // Initial load — runs ONCE on mount. `sync` is stable (only stable deps),
+  // so this effect never re-fires on its own updates.
   useEffect(() => {
-    if (!user) return;
-    loadRoom();
-  }, [user, loadRoom]);
+    sync();
+  }, [sync]);
 
-  const refresh = useCallback(async () => {
-    const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null);
-    if (me && me.user) {
-      setUser(me.user);
-      if (me.inRoomId) {
-        const res = await api(`/api/rooms/${me.inRoomId}`, { method: "GET" });
-        if (res && res.room) {
-          setRoom(res.room);
-          setMembers(res.members || []);
-        }
-      } else {
-        setRoom(null);
-        setMembers([]);
-      }
-    }
-  }, [api, setUser]);
-
-  // auto-miner / auto-tap tick: refresh to sync treasury every 5s
+  // Live-sync while inside a room (auto-miner ticks, other members' actions).
   useEffect(() => {
-    if (!room) return;
-    const t = setInterval(() => refresh(), 5000);
+    if (!roomId) return;
+    const t = setInterval(sync, 5000);
     return () => clearInterval(t);
-  }, [room, refresh]);
+  }, [roomId, sync]);
+
+  // Manual refresh for child tabs after their actions.
+  const refresh = sync;
+
+  // Single, clean way to enter a room: just re-sync. The server is the source
+  // of truth for membership, so this transition is one-directional lobby->room
+  // with no flicker, no router dance, no timeouts.
+  const enterRoom = useCallback(async () => {
+    await sync();
+  }, [sync]);
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
@@ -166,11 +174,7 @@ export function GameShell() {
 
         <main className="mx-auto max-w-7xl px-6 py-6">
           {!room ? (
-            <Lobby onEnterRoom={(id) => {
-              setRoom(null);
-              router.push(`/game?room=${id}`);
-              setTimeout(loadRoom, 200);
-            }} refresh={refresh} />
+            <Lobby onEnterRoom={enterRoom} />
           ) : (
             <>
               {roomBlocked && (

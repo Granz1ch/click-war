@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useApp } from "../Providers";
 
-export function Lobby({ onEnterRoom, refresh }) {
+export function Lobby({ onEnterRoom }) {
   const { api, showToast, user } = useApp();
   const [rooms, setRooms] = useState([]);
   const [tab, setTab] = useState("list");
@@ -27,10 +27,15 @@ export function Lobby({ onEnterRoom, refresh }) {
       method: "POST",
       body: form,
     });
-    setBusy(false);
-    if (!res.ok) return showToast(res.error, "error");
+    if (!res.ok) {
+      setBusy(false);
+      return showToast(res.error, "error");
+    }
     showToast("Room created!", "success");
-    onEnterRoom(res.room.id);
+    // Enter the room by syncing with the server (single source of truth),
+    // then release the button. No flicker, no racing timeouts.
+    await onEnterRoom(res.room.id);
+    setBusy(false);
   }
 
   async function requestJoin(roomId) {
@@ -50,11 +55,11 @@ export function Lobby({ onEnterRoom, refresh }) {
       if (me && me.inRoomId) {
         clearInterval(t);
         onEnterRoom(me.inRoomId);
-        refresh();
+        setPendingRoom(null);
       }
     }, 3000);
     return () => clearInterval(t);
-  }, [pendingRoom, onEnterRoom, refresh]);
+  }, [pendingRoom, onEnterRoom]);
 
   // Build avatar gradient deterministically
   const avatarGradient = (s) => {
